@@ -937,12 +937,35 @@ const STATUS_LABELS = { 0: 'Unlocked', 1: 'In Progress', 2: 'Completed' };
 // STORAGE
 // ============================================================
 
+// localStorage can be blocked (site data disabled, sandboxed iframe,
+// some private modes) or full; touching it then throws. Fall back to an
+// in-memory store so the planner — including Import — still works for
+// this visit.
+const memoryStore = new Map();
+let storageWarned = false;
+
+function warnStorageUnavailable() {
+  if (storageWarned) return;
+  storageWarned = true;
+  setTimeout(() => showToast('⚠ Browser storage is blocked — progress lasts only until you close this tab. Use Export to keep it.'), 300);
+}
+
 function storeGet(key) {
-  try { return localStorage.getItem(key); } catch { return null; }
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    warnStorageUnavailable();
+    return memoryStore.has(key) ? memoryStore.get(key) : null;
+  }
 }
 
 function storeSet(key, value) {
-  try { localStorage.setItem(key, value); } catch { /* storage unavailable — keep running in-memory */ }
+  memoryStore.set(key, value);
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    warnStorageUnavailable();
+  }
 }
 
 function saveProgress() {
