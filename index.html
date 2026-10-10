@@ -1,0 +1,1457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- CSP: no inline eval, no external script injection -->
+<meta http-equiv="Content-Security-Policy"
+  content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'none';">
+<title>Animation Student Planner — UTech Jamaica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --surface: #161616;
+    --surface2: #1e1e1e;
+    --border: #2a2a2a;
+    --accent: #c24db4;        /* Knight Cap magenta #A33B96, lifted for contrast on dark */
+    --accent2: #e48ad8;
+    --text: #e8e8e8;
+    --text-muted: #888;
+    --text-dim: #555;
+    --locked: #2a2a2a;
+    --locked-text: #444;
+    --in-progress: #2a2210;
+    --in-progress-border: #8a6a1a;
+    --in-progress-text: #e8a020;
+    --completed: #0f2a1a;
+    --completed-border: #1e6b3a;
+    --completed-text: #4caf78;
+    --elective: #1a1a2a;
+    --elective-border: #3a3a6a;
+    --elective-text: #7878c8;
+    /* Year colours — brand fills, with a lighter border/text for legibility */
+    --year1-bg: #2f2666; --year1-fg: #d9d4ff; --year1-line: #5a4fb0;
+    --year2-bg: #425aa7; --year2-fg: #ffffff; --year2-line: #6f86d6;
+    --year3-bg: #06384d; --year3-fg: #bfe9fa; --year3-line: #1f7699;
+    --year4-bg: #b0deeb; --year4-fg: #06384d; --year4-line: #b0deeb;
+    --red: #e85050;
+    --radius: 6px;
+    --font-mono: 'Space Mono', monospace;
+    --font-sans: 'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ---- HEADER ---- */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+  }
+
+  .logo {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .logo span { color: var(--text-muted); }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .programme-badge {
+    background: var(--accent);
+    color: #000;
+    border-radius: var(--radius);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    padding: 0.4rem 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .progress-summary {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .progress-bar-mini {
+    width: 80px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+
+  /* ---- MAIN LAYOUT ---- */
+  main {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    min-height: calc(100vh - 56px);
+  }
+
+  /* ---- SIDEBAR ---- */
+  aside {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 1.5rem 1rem;
+    position: sticky;
+    top: 56px;
+    height: calc(100vh - 56px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .sidebar-section h3 {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 0.75rem;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .dot-locked { background: var(--border); }
+  .dot-completed { background: var(--completed-text); }
+  .dot-in-progress { background: var(--in-progress-text); }
+  .dot-elective { background: var(--elective-text); }
+
+  .sidebar-note {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    line-height: 1.55;
+  }
+
+  .sidebar-note strong { color: var(--text-muted); font-weight: 600; }
+  .sidebar-note p + p { margin-top: 0.45rem; }
+
+  .credits-display {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+  }
+
+  .credits-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .credits-label { color: var(--text-muted); }
+  .credits-val { font-family: var(--font-mono); color: var(--accent); font-size: 1rem; font-weight: 700; }
+
+  .credits-progress {
+    width: 100%;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 0.5rem;
+  }
+
+  .credits-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 3px;
+    transition: width 0.5s ease;
+  }
+
+  .student-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .student-info input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    padding: 0.5rem 0.75rem;
+    outline: none;
+    transition: border-color 0.15s;
+    width: 100%;
+  }
+
+  .student-info input:focus { border-color: var(--accent); }
+  .student-info input::placeholder { color: var(--text-dim); }
+
+  .btn-reset {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    padding: 0.4rem 0.75rem;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: all 0.15s;
+    width: 100%;
+  }
+
+  .btn-reset:hover { border-color: var(--red); color: var(--red); }
+
+  /* ---- CONTENT ---- */
+  .content {
+    padding: 2rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+  }
+
+  /* ---- YEAR SECTION ---- */
+  .year-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .year-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .year-tag {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    padding: 0.2rem 0.6rem;
+    border-radius: 3px;
+    border: 1px solid;
+    white-space: nowrap;
+  }
+
+  .year-tag-1 { background: var(--year1-bg); color: var(--year1-fg); border-color: var(--year1-line); }
+  .year-tag-2 { background: var(--year2-bg); color: var(--year2-fg); border-color: var(--year2-line); }
+  .year-tag-3 { background: var(--year3-bg); color: var(--year3-fg); border-color: var(--year3-line); }
+  .year-tag-4 { background: var(--year4-bg); color: var(--year4-fg); border-color: var(--year4-line); }
+
+  .year-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .year-divider {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .year-progress-text {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  /* ---- SEMESTER ---- */
+  .semester-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .semester-label {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding-left: 2px;
+  }
+
+  /* ---- COURSE GRID ---- */
+  .course-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.75rem;
+  }
+
+  /* ---- COURSE CARD ---- */
+  .course-card {
+    background: var(--locked);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.85rem 1rem;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.18s ease;
+    user-select: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .course-card:hover {
+    border-color: var(--text-dim);
+    transform: translateY(-1px);
+  }
+
+  .course-card:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .course-card.locked {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .course-card.locked:hover {
+    transform: none;
+    border-color: var(--border);
+  }
+
+  .course-card.elective {
+    border-style: dashed;
+    border-color: var(--elective-border);
+    background: var(--elective);
+  }
+
+  /* State colours come after .elective so a completed / in-progress
+     elective shows its state rather than staying purple. */
+  .course-card.completed {
+    background: var(--completed);
+    border-color: var(--completed-border);
+    opacity: 1;
+  }
+
+  .course-card.in-progress {
+    background: var(--in-progress);
+    border-color: var(--in-progress-border);
+    opacity: 1;
+  }
+
+  .course-card.elective.locked {
+    background: var(--locked);
+    border-color: var(--border);
+    opacity: 0.4;
+  }
+
+  .course-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .course-id {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+  }
+
+  .course-card.elective .course-id { color: var(--elective-text); }
+  .course-card.completed .course-id { color: var(--completed-text); }
+  .course-card.in-progress .course-id { color: var(--in-progress-text); }
+
+  .course-status-icon {
+    font-size: 0.75rem;
+    line-height: 1;
+  }
+
+  .course-name {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    line-height: 1.3;
+  }
+
+  .course-card.completed .course-name { color: var(--text); }
+  .course-card.in-progress .course-name { color: var(--text); }
+
+  .course-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: 0.15rem;
+  }
+
+  .course-credits {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  .course-prereqs {
+    font-family: var(--font-mono);
+    font-size: 0.55rem;
+    color: var(--text-dim);
+    text-align: right;
+    max-width: 130px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ---- CARD DROPDOWNS (elective course / credits, either-or choice) ---- */
+  .card-select {
+    background: var(--surface2);
+    border: 1px solid var(--elective-border);
+    border-radius: 3px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    padding: 0.15rem 0.25rem;
+    cursor: pointer;
+    outline: none;
+    max-width: 100%;
+  }
+
+  .card-select:focus { border-color: var(--accent); }
+  .card-select:disabled { cursor: not-allowed; }
+
+  .card-select.slot-course {
+    width: 100%;
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    padding: 0.25rem 0.35rem;
+    text-overflow: ellipsis;
+  }
+
+  .card-select.slot-course.unchosen { color: var(--text-muted); }
+  .course-card:not(.elective) .card-select { border-color: var(--border); }
+
+  /* ---- STATE CYCLE INDICATOR ---- */
+  .course-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius);
+    opacity: 0;
+    background: rgba(194, 77, 180, 0.07);
+    transition: opacity 0.15s;
+    pointer-events: none;
+  }
+
+  .course-card:not(.locked):active::after { opacity: 1; }
+
+  /* ---- TOOLTIP ---- */
+  .tooltip {
+    position: fixed;
+    background: #000;
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 0.6rem 0.8rem;
+    font-size: 0.75rem;
+    color: var(--text);
+    pointer-events: none;
+    z-index: 1000;
+    max-width: 250px;
+    opacity: 0;
+    transition: opacity 0.12s;
+    line-height: 1.5;
+  }
+
+  .tooltip.visible { opacity: 1; }
+
+  .tooltip-title {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--accent);
+    margin-bottom: 0.3rem;
+  }
+
+  .tooltip-meta {
+    margin-top: 0.3rem;
+    font-size: 0.68rem;
+    color: var(--text-dim);
+  }
+
+  .tooltip-hint {
+    margin-top: 0.3rem;
+    font-size: 0.65rem;
+    color: var(--accent);
+  }
+
+  /* ---- TOAST ---- */
+  .toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 0.75rem 1rem;
+    color: var(--text);
+    z-index: 500;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.25s ease;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+  }
+
+  .toast.show {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  /* ---- SCROLLBAR ---- */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ---- RESPONSIVE ---- */
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; }
+    aside {
+      position: static;
+      height: auto;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 1rem;
+      overflow: visible;
+    }
+    .sidebar-section { min-width: 150px; flex: 1; }
+  }
+
+  @media (max-width: 600px) {
+    header { padding: 0 1rem; }
+    .content { padding: 1rem; }
+    .logo span { display: none; }
+    .progress-summary { display: none; }
+    .year-header { flex-wrap: wrap; gap: 0.5rem 1rem; }
+    .year-divider { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">ANI<span>/</span>UTech <span>— Student Planner</span></div>
+  <div class="header-right">
+    <div class="programme-badge" title="Bachelor of Science in Animation Development and Production">BSc Animation</div>
+    <div class="progress-summary">
+      <div class="progress-bar-mini"><div class="progress-bar-fill" id="header-progress-bar" style="width:0%"></div></div>
+      <span id="header-progress-text">0%</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <aside>
+    <div class="sidebar-section">
+      <h3>Student Info</h3>
+      <div class="student-info">
+        <input type="text" id="student-name" placeholder="Your Name" maxlength="200">
+        <input type="text" id="student-id" placeholder="Student ID #" maxlength="200">
+        <input type="text" id="start-date" placeholder="Start Year (e.g. 2026)" maxlength="200">
+        <input type="text" id="advisor" placeholder="Academic Advisor / PL / PD" maxlength="200">
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Progress</h3>
+      <div class="credits-display">
+        <div class="credits-row">
+          <span class="credits-label">Credits Earned</span>
+          <span class="credits-val" id="credits-earned">0</span>
+        </div>
+        <div class="credits-row">
+          <span class="credits-label">Total Credits</span>
+          <span class="credits-val" id="credits-total">0</span>
+        </div>
+        <div class="credits-progress">
+          <div class="credits-progress-fill" id="credits-bar" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Status Key</h3>
+      <div class="legend-item"><div class="legend-dot dot-locked"></div>Locked (prereqs needed)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--text-dim)"></div>Unlocked / Available</div>
+      <div class="legend-item"><div class="legend-dot dot-in-progress"></div>In Progress</div>
+      <div class="legend-item"><div class="legend-dot dot-completed"></div>Completed</div>
+      <div class="legend-item"><div class="legend-dot dot-elective"></div>Elective</div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Click to Cycle</h3>
+      <div class="sidebar-note">
+        Click any <strong>unlocked</strong> course to cycle:<br>
+        → Unlocked → In Progress → Completed → Unlocked
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>F.Y.I</h3>
+      <div class="sidebar-note">
+        <p><strong>Electives:</strong> pick the course from the dropdown on each elective card, then set 3 or 4 credits.</p>
+        <p><strong>*</strong> Electives marked with an asterisk have prerequisites of their own — confirm with your advisor.</p>
+        <p><strong>NB:</strong> the BSc requires <strong>121–126 credits</strong>, including electives.</p>
+      </div>
+    </div>
+
+    <div style="margin-top:auto; display:flex; flex-direction:column; gap:0.5rem;">
+      <button class="btn-reset" id="btn-export">↑ Export / Backup Data</button>
+      <label class="btn-reset" style="text-align:center;cursor:pointer;" title="Import a previously exported backup">
+        ↓ Import / Restore Data
+        <input type="file" id="import-file" accept=".json" style="display:none">
+      </label>
+      <button class="btn-reset" id="btn-reset">⟳ Reset All Progress</button>
+      <div style="font-size:0.65rem;color:var(--text-dim);line-height:1.5;margin-top:0.25rem;border-top:1px solid var(--border);padding-top:0.5rem;">
+        🔒 All data is stored <strong style="color:var(--text-muted)">only on this device</strong> in your browser's localStorage. Nothing is sent to any server. Use Export/Import to move data between devices.
+      </div>
+    </div>
+  </aside>
+
+  <div class="content" id="main-content">
+    <!-- Rendered by JS -->
+  </div>
+</main>
+
+<div class="tooltip" id="tooltip"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// STORAGE KEYS — prefixed so this planner never collides with
+// other UTech planners served from the same origin.
+// ============================================================
+const PLANNER_ID = 'utech-ani-planner';
+const KEY = {
+  progress: 'ani_progress',
+  selections: 'ani_selections',
+  name: 'ani_student_name',
+  id: 'ani_student_id',
+  start: 'ani_start_date',
+  advisor: 'ani_advisor',
+};
+
+// ============================================================
+// ELECTIVE LISTS — from the Module Selection Guide.
+// `star` = the guide marks it with * (has prerequisite/s of its own).
+// ============================================================
+const ELECTIVE_CREDIT_OPTIONS = [3, 4];
+
+const ELECTIVE_LISTS = {
+  scit: {
+    label: "SCIT Elective",
+    courses: [
+      { code: "CMP1026", title: "Computer Networks I" },
+      { code: "CIT2011", title: "Web Programming", star: true },
+      { code: "CIT3025", title: "IS Innovation and Emerging Technologies", star: true },
+      { code: "CIT3021", title: "Foundations of Information Systems", star: true },
+      { code: "CIT3020", title: "Digital Video Effects", star: true },
+      { code: "CIT3028", title: "Digital Graphics", star: true },
+      { code: "CIT4032", title: "IS Planning & Management", star: true },
+      { code: "CIT3023", title: "Introduction to Human Computer Interface", star: true },
+    ]
+  },
+  mgmt: {
+    label: "Management Elective",
+    courses: [
+      { code: "MKT2001", title: "Fundamentals of Marketing", star: true },
+      { code: "LAW2001", title: "Business Law", star: true },
+      { code: "MKT3010", title: "Service Marketing", star: true },
+      { code: "MAN3001", title: "Organization & Management" },
+      { code: "ACC1001", title: "Accounts" },
+      { code: "MKT4015", title: "Music Marketing", star: true },
+    ]
+  },
+  anim: {
+    label: "Animation Elective",
+    courses: [
+      { code: "ANI3005", title: "Advanced Figure Drawing", star: true },
+      { code: "ANI3006", title: "Animation History II", star: true },
+      { code: "ANI3011", title: "Sequential Narrative" },
+      { code: "ANI3007", title: "Storytelling for Animation II", star: true },
+      { code: "ANI3008", title: "Scriptwriting II", star: true },
+      { code: "ANI3009", title: "Animation Actors", star: true },
+    ]
+  },
+};
+
+// ============================================================
+// CURRICULUM — BSc Animation Development and Production
+// Source: UTech SCIT Module Selection Guide (starting AY 2023/24)
+//
+// Course fields:
+//   id        unique key used for saved progress
+//   code      code shown on the card (defaults to id)
+//   deps      prerequisites; a nested array means "any one of"
+//             e.g. [["ANI1007", "ANI1009", "ANI3003"]]
+//   prereqText  prereq wording exactly as printed, when it differs
+//               from what `deps` can express
+//   standing  a level requirement ("Level 3") — shown, never locks
+//   elective  key into ELECTIVE_LISTS (or "univ" for a free choice);
+//             student picks the course and 3 / 4 credits
+//   choice    either/or core slot — student picks one option, whose
+//             credits are fixed
+// ============================================================
+const PROGRAMME = {
+  name: "BSc Animation Development and Production",
+  years: [
+    {
+      year: 1,
+      label: "1st Yr: Foundations of Animation",
+      semesters: [
+        {
+          sem: 1,
+          courses: [
+            { id: "ANI1008", title: "Principles of Animation", deps: [], credits: 3 },
+            { id: "ANI1002", title: "Animation Tools I", deps: [], credits: 3 },
+            { id: "ANI1003", title: "Animation History I", deps: [], credits: 3 },
+            { id: "ANI2006", title: "Introduction to Figure Analysis", deps: [], credits: 3 },
+            { id: "ANI1009", title: "Dimensional Drawing", deps: [], credits: 3 },
+          ]
+        },
+        {
+          sem: 2,
+          courses: [
+            { id: "ANI1004", title: "Life Drawing and Practices", deps: ["ANI2006"], credits: 3 },
+            { id: "ANI1006", title: "Animation Tools II", deps: ["ANI1002"], credits: 3 },
+            { id: "ANI2002", title: "Critical Structures (Storyboard Concepts)", deps: [], credits: 3 },
+            { id: "CAT1001", title: "Writing Workshop I", deps: [], credits: 3 },
+            { id: "MAT1047", title: "College Math 1B", deps: [], credits: 4 },
+            { id: "CSP1001", title: "Community Service Project", deps: [], credits: 1 },
+          ]
+        }
+      ]
+    },
+    {
+      year: 2,
+      label: "2nd Yr: Anatomy & Storytelling",
+      semesters: [
+        {
+          sem: 3,
+          courses: [
+            { id: "ANI2001", title: "Dynamic Anatomy I", deps: ["ANI1004", "ANI1006"], credits: 3 },
+            { id: "ANI2009", title: "Introduction to Character Design and Development", deps: ["ANI2006"], credits: 3 },
+            { id: "ANI2003", title: "Digital Media and Sound Effects", deps: ["ANI1006"], credits: 3 },
+            { id: "ANI2004", title: "Storytelling for Animation I", deps: ["CAT1001"], credits: 3 },
+            { id: "COM2015", title: "Business Communication for Professionals", deps: ["CAT1001"], credits: 3 },
+          ]
+        },
+        {
+          sem: 4,
+          courses: [
+            { id: "ANI2005", title: "Dynamic Anatomy II", deps: ["ANI2001"], credits: 4 },
+            { id: "PSY1002", title: "Introduction to Psychology", deps: [], credits: 3 },
+            { id: "INT1001", title: "Information Technology", deps: [], credits: 3 },
+            { id: "ANI2007", title: "Scriptwriting I", deps: ["ANI2004"], credits: 4 },
+            { id: "ANI2008", title: "2D Frame Development", deps: ["ANI1006", "ANI2001"], credits: 3 },
+          ]
+        }
+      ]
+    },
+    {
+      year: 3,
+      label: "3rd Yr: 3D & the Business of Animation",
+      semesters: [
+        {
+          sem: 5,
+          courses: [
+            // ANI1007 and ANI3003 are not part of this programme, so ANI1009 is the gate in practice.
+            { id: "ANI3012", title: "3D Modeling", deps: [["ANI1007", "ANI1009", "ANI3003"]], prereqText: "ANI1007, ANI1009 or ANI3003", credits: 4 },
+            { id: "ANIM_ELEC_5", title: "Animation Elective", deps: [], credits: 3, elective: "anim" },
+            { id: "CIT4024", title: "IT Project Management", deps: ["INT1001"], credits: 3 },
+            { id: "GEN_CHOICE_5", title: "Environmental Studies / Fitness & Wellness / Science and Technology", deps: [], choice: [
+                { code: "ENS3001", title: "Environmental Studies", credits: 3 },
+                { code: "HEA3004", title: "Fitness & Wellness", credits: 3 },
+                { code: "SCT2001", title: "Science and Technology", credits: 2 },
+              ] },
+            // COM1020 / COM1024 are not part of this programme, so CAT1001 is the gate in practice.
+            { id: "HUM3010", title: "Professional, Ethics and Legal Implications of Computing Systems", deps: [["CAT1001", "COM1020", "COM1024"]], prereqText: "CAT1001, COM1020 or COM1024", credits: 3 },
+          ]
+        },
+        {
+          sem: 6,
+          courses: [
+            { id: "ANI3002", title: "Animation Business Operations", deps: ["CIT4024"], credits: 3 },
+            { id: "ANI3013", title: "3D Animation", deps: ["ANI3012"], credits: 4 },
+            { id: "ANI3004", title: "Presentation Skills Theory", deps: ["ANI2007"], credits: 3 },
+            { id: "RES3024", title: "Computing Research Methods", deps: ["CAT1001"], credits: 3 },
+            { id: "SCIT_ELEC_6", title: "SCIT Elective", deps: [], credits: 3, elective: "scit" },
+          ]
+        }
+      ]
+    },
+    {
+      year: 4,
+      label: "4th Yr: Production & Capstone",
+      semesters: [
+        {
+          sem: 7,
+          courses: [
+            { id: "ANI3010", title: "Animation Internship", deps: [], standing: "Level 3", credits: 3 },
+            { id: "ENT3001", title: "Entrepreneurship", deps: [], credits: 3 },
+            { id: "SCIT_ELEC_7", title: "SCIT Elective", deps: [], credits: 3, elective: "scit" },
+            { id: "ANI4002", title: "Animation Production", deps: ["ANI2003", "ANI3002"], credits: 3 },
+            { id: "UNIV_ELEC_7", title: "University Elective", deps: [], credits: 3, elective: "univ" },
+          ]
+        },
+        {
+          sem: 8,
+          courses: [
+            { id: "ANI4001", title: "Animation Capstone Project", deps: ["RES3024"], credits: 3 },
+            { id: "ANIM_ELEC_8", title: "Animation Elective", deps: [], credits: 3, elective: "anim" },
+            { id: "CIT4036", title: "Professional Development Seminar", deps: [], standing: "Level 4", credits: 1 },
+            { id: "MGMT_ELEC_8", title: "Management Elective", deps: [], credits: 3, elective: "mgmt" },
+          ]
+        }
+      ]
+    }
+  ]
+};
+
+const ALL_COURSES = PROGRAMME.years.flatMap(y => y.semesters.flatMap(s => s.courses));
+const COURSE_MAP = new Map(ALL_COURSES.map(c => [c.id, c]));
+
+// The University Elective is a free choice (no list), so it only gets the credit dropdown.
+function electiveList(course) {
+  return course.elective && ELECTIVE_LISTS[course.elective] ? ELECTIVE_LISTS[course.elective].courses : null;
+}
+
+// ============================================================
+// SECURITY: Sanitise localStorage read — reject unexpected shapes.
+// ============================================================
+function parseObject(raw) {
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function safeParseProgress(raw) {
+  const clean = {};
+  for (const [k, v] of Object.entries(parseObject(raw))) {
+    // Keys must be known course IDs; values must be 0, 1, or 2.
+    if (COURSE_MAP.has(k) && [0, 1, 2].includes(v)) clean[k] = v;
+  }
+  return clean;
+}
+
+// selections: { slotId: { course?: code, credits?: 3|4 } }
+function safeParseSelections(raw) {
+  const clean = {};
+  for (const [k, v] of Object.entries(parseObject(raw))) {
+    const c = COURSE_MAP.get(k);
+    if (!c || typeof v !== 'object' || v === null) continue;
+    const entry = {};
+    const list = electiveList(c);
+    if (list) {
+      if (list.some(o => o.code === v.course)) entry.course = v.course;
+      if (ELECTIVE_CREDIT_OPTIONS.includes(v.credits)) entry.credits = v.credits;
+    } else if (c.choice) {
+      if (c.choice.some(o => o.code === v.course)) entry.course = v.course;
+    }
+    if (Object.keys(entry).length) clean[k] = entry;
+  }
+  return clean;
+}
+
+// ============================================================
+// SECURITY: Sanitise student info — strip angle brackets, cap length.
+// Values are only ever written back via input.value (never innerHTML).
+// ============================================================
+function sanitiseText(str) {
+  if (typeof str !== 'string') return '';
+  return str.replace(/[<>]/g, '').slice(0, 200);
+}
+
+// ============================================================
+// STATE
+// ============================================================
+
+// status: 0=unlocked, 1=in-progress, 2=completed
+let progress = {};   // { courseId: 0|1|2 }
+let selections = {}; // { slotId: { course, credits } }
+
+const STATUS = { UNLOCKED: 0, IN_PROGRESS: 1, COMPLETED: 2 };
+const STATUS_ICONS = { 0: '', 1: '◑', 2: '✓' };
+const STATUS_LABELS = { 0: 'Unlocked', 1: 'In Progress', 2: 'Completed' };
+
+// ============================================================
+// STORAGE
+// ============================================================
+
+function storeGet(key) {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+
+function storeSet(key, value) {
+  try { localStorage.setItem(key, value); } catch { /* storage unavailable — keep running in-memory */ }
+}
+
+function saveProgress() {
+  storeSet(KEY.progress, JSON.stringify(progress));
+  storeSet(KEY.selections, JSON.stringify(selections));
+}
+
+function loadProgress() {
+  progress = safeParseProgress(storeGet(KEY.progress));
+  selections = safeParseSelections(storeGet(KEY.selections));
+}
+
+const STUDENT_FIELDS = [
+  ['student-name', KEY.name],
+  ['student-id', KEY.id],
+  ['start-date', KEY.start],
+  ['advisor', KEY.advisor],
+];
+
+function saveStudentInfo() {
+  STUDENT_FIELDS.forEach(([el, key]) => {
+    storeSet(key, sanitiseText(document.getElementById(el).value));
+  });
+}
+
+function loadStudentInfo() {
+  STUDENT_FIELDS.forEach(([el, key]) => {
+    document.getElementById(el).value = sanitiseText(storeGet(key) || '');
+  });
+}
+
+// ============================================================
+// LOGIC
+// ============================================================
+
+// A course only counts as completed while its own prereqs are still met,
+// so un-completing a prereq re-locks everything downstream of it.
+function isCompleted(id) {
+  const c = COURSE_MAP.get(id);
+  return !!c && progress[id] === STATUS.COMPLETED && isUnlocked(c);
+}
+
+function depMet(dep) {
+  return Array.isArray(dep) ? dep.some(isCompleted) : isCompleted(dep);
+}
+
+function isUnlocked(course) {
+  return (course.deps || []).every(depMet);
+}
+
+function getStatus(course) {
+  if (!isUnlocked(course)) return 'locked';
+  const s = progress[course.id] || STATUS.UNLOCKED;
+  if (s === STATUS.COMPLETED) return 'completed';
+  if (s === STATUS.IN_PROGRESS) return 'in-progress';
+  return 'unlocked';
+}
+
+// The option chosen in an either/or slot (defaults to the first listed).
+function choiceOf(course) {
+  const code = selections[course.id] && selections[course.id].course;
+  return course.choice.find(o => o.code === code) || course.choice[0];
+}
+
+// The elective course picked from its list, or null if not chosen yet.
+function electivePick(course) {
+  const list = electiveList(course);
+  const code = selections[course.id] && selections[course.id].course;
+  return (list && list.find(o => o.code === code)) || null;
+}
+
+function creditsOf(course) {
+  if (course.choice) return choiceOf(course).credits;
+  if (course.elective) return (selections[course.id] && selections[course.id].credits) || course.credits;
+  return course.credits;
+}
+
+function codeOf(course) {
+  if (course.choice) return choiceOf(course).code;
+  if (course.elective) {
+    const pick = electivePick(course);
+    return pick ? pick.code : 'ELECTIVE';
+  }
+  return course.code || course.id;
+}
+
+function titleOf(course) {
+  if (course.choice) return choiceOf(course).title;
+  if (course.elective) {
+    const pick = electivePick(course);
+    return pick ? `${course.title}: ${pick.title}` : course.title;
+  }
+  return course.title;
+}
+
+function formatDep(dep) {
+  if (!Array.isArray(dep)) return COURSE_MAP.has(dep) ? codeOf(COURSE_MAP.get(dep)) : dep;
+  return '(' + dep.map(formatDep).join(' or ') + ')';
+}
+
+function formatDeps(deps) {
+  return deps && deps.length ? deps.map(formatDep).join(' + ') : 'None';
+}
+
+function prereqLabel(course) {
+  if (course.prereqText) return course.prereqText;
+  if (course.deps && course.deps.length) return formatDeps(course.deps);
+  if (course.standing) return course.standing;
+  return '';
+}
+
+function cycleStatus(course) {
+  if (!isUnlocked(course)) {
+    const missing = course.deps.filter(d => !depMet(d));
+    showToast(`🔒 Requires: ${formatDeps(missing)}`);
+    return;
+  }
+  if (electiveList(course) && !electivePick(course) && !progress[course.id]) {
+    showToast(`Pick a course for this ${course.title} first.`);
+    return;
+  }
+  const cur = progress[course.id] || STATUS.UNLOCKED;
+  progress[course.id] = (cur + 1) % 3;
+  saveProgress();
+  render();
+  showToast(`${codeOf(course)}: ${STATUS_LABELS[progress[course.id]]}`);
+}
+
+function computeCredits() {
+  let earned = 0, total = 0;
+  ALL_COURSES.forEach(c => {
+    total += creditsOf(c);
+    if (isCompleted(c.id)) earned += creditsOf(c);
+  });
+  return { earned, total };
+}
+
+// Elective codes already picked in another slot of the same list,
+// so the same course can't be counted twice.
+function takenElsewhere(course) {
+  const taken = new Set();
+  ALL_COURSES.forEach(c => {
+    if (c.id === course.id || c.elective !== course.elective) return;
+    const pick = electivePick(c);
+    if (pick) taken.add(pick.code);
+  });
+  return taken;
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+
+// Escape for safe innerHTML insertion (prevents XSS from data strings)
+function esc(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderSlotPicker(course, isLocked) {
+  const dis = isLocked ? ' disabled' : '';
+  if (course.choice) {
+    const cur = choiceOf(course).code;
+    const opts = course.choice
+      .map(o => `<option value="${esc(o.code)}"${o.code === cur ? ' selected' : ''}>${esc(o.code)} — ${esc(o.title)}</option>`)
+      .join('');
+    return `<select class="card-select slot-course" data-slot="${esc(course.id)}" aria-label="Choose one: ${esc(course.title)}"${dis}>${opts}</select>`;
+  }
+  const list = electiveList(course);
+  if (!list) return '';
+  const pick = electivePick(course);
+  const taken = takenElsewhere(course);
+  const opts = list.map(o => {
+    const sel = pick && pick.code === o.code ? ' selected' : '';
+    const used = taken.has(o.code) ? ' disabled' : '';
+    const note = taken.has(o.code) ? ' (chosen in another slot)' : '';
+    return `<option value="${esc(o.code)}"${sel}${used}>${esc(o.code)}${o.star ? '*' : ''} — ${esc(o.title)}${note}</option>`;
+  }).join('');
+  return `<select class="card-select slot-course${pick ? '' : ' unchosen'}" data-slot="${esc(course.id)}" aria-label="Choose course for ${esc(course.title)}"${dis}>
+      <option value=""${pick ? '' : ' selected'}>— Choose course —</option>${opts}
+    </select>`;
+}
+
+function renderCredits(course, isLocked) {
+  if (!electiveList(course)) return `${esc(creditsOf(course))} cr`;
+  const cur = creditsOf(course);
+  const opts = ELECTIVE_CREDIT_OPTIONS
+    .map(n => `<option value="${n}"${n === cur ? ' selected' : ''}>${n} cr</option>`)
+    .join('');
+  return `<select class="card-select elective-credits" data-slot="${esc(course.id)}" aria-label="Credits for ${esc(course.title)}"${isLocked ? ' disabled' : ''}>${opts}</select>`;
+}
+
+function render() {
+  const container = document.getElementById('main-content');
+  let html = '';
+
+  PROGRAMME.years.forEach(yearData => {
+    const yearCourses = yearData.semesters.flatMap(s => s.courses);
+    const yearCompleted = yearCourses.filter(c => isCompleted(c.id)).length;
+
+    html += `
+      <section class="year-section">
+        <div class="year-header">
+          <div class="year-tag year-tag-${esc(yearData.year)}">Year ${esc(yearData.year)}</div>
+          <h2 class="year-title">${esc(yearData.label)}</h2>
+          <div class="year-divider"></div>
+          <div class="year-progress-text">${esc(yearCompleted)}/${esc(yearCourses.length)} done</div>
+        </div>
+    `;
+
+    yearData.semesters.forEach(semData => {
+      html += `
+        <div class="semester-block">
+          <div class="semester-label">Semester ${esc(semData.sem)}</div>
+          <div class="course-grid">
+      `;
+
+      semData.courses.forEach(course => {
+        const status = getStatus(course);
+        const isLocked = status === 'locked';
+        const icon = isLocked ? '🔒' : STATUS_ICONS[progress[course.id] || 0];
+        const prereq = prereqLabel(course);
+        const name = course.choice ? 'Choose one:' : course.title;
+
+        html += `
+          <div
+            class="course-card ${esc(status)}${course.elective ? ' elective' : ''}"
+            data-id="${esc(course.id)}"
+            role="button"
+            tabindex="0"
+            aria-disabled="${isLocked}"
+          >
+            <div class="course-header">
+              <span class="course-id">${esc(codeOf(course))}</span>
+              <span class="course-status-icon">${esc(icon)}</span>
+            </div>
+            <div class="course-name">${esc(name)}</div>
+            ${renderSlotPicker(course, isLocked)}
+            <div class="course-footer">
+              <span class="course-credits">${renderCredits(course, isLocked)}</span>
+              ${prereq ? `<span class="course-prereqs">← ${esc(prereq)}</span>` : ''}
+            </div>
+          </div>
+        `;
+      });
+
+      html += `</div></div>`;
+    });
+
+    html += `</section>`;
+  });
+
+  container.innerHTML = html;
+
+  // Header and sidebar both measure credits so the two bars always agree.
+  const { earned, total } = computeCredits();
+  const pct = total ? Math.round((earned / total) * 100) : 0;
+  document.getElementById('credits-earned').textContent = earned;
+  document.getElementById('credits-total').textContent = total;
+  document.getElementById('credits-bar').style.width = pct + '%';
+  document.getElementById('header-progress-bar').style.width = pct + '%';
+  document.getElementById('header-progress-text').textContent = pct + '%';
+}
+
+// ============================================================
+// EVENTS (delegated — no inline handlers built from data)
+// ============================================================
+
+const content = document.getElementById('main-content');
+
+content.addEventListener('click', e => {
+  if (e.target.closest('select')) return;
+  const card = e.target.closest('.course-card');
+  if (!card) return;
+  const course = COURSE_MAP.get(card.dataset.id);
+  if (course) cycleStatus(course);
+});
+
+content.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  if (e.target.closest('select')) return;
+  const card = e.target.closest('.course-card');
+  if (!card) return;
+  e.preventDefault();
+  const course = COURSE_MAP.get(card.dataset.id);
+  if (course) {
+    cycleStatus(course);
+    const again = content.querySelector(`.course-card[data-id="${CSS.escape(course.id)}"]`);
+    if (again) again.focus();
+  }
+});
+
+content.addEventListener('change', e => {
+  const sel = e.target.closest('select[data-slot]');
+  if (!sel) return;
+  const course = COURSE_MAP.get(sel.dataset.slot);
+  if (!course) return;
+  const entry = Object.assign({}, selections[course.id]);
+
+  if (sel.classList.contains('elective-credits')) {
+    const val = Number(sel.value);
+    if (!electiveList(course) || !ELECTIVE_CREDIT_OPTIONS.includes(val)) return;
+    entry.credits = val;
+    showToast(`${course.title}: ${val} credits`);
+  } else {
+    const options = course.choice || electiveList(course) || [];
+    const pick = options.find(o => o.code === sel.value);
+    if (pick) {
+      entry.course = pick.code;
+      showToast(`${course.title}: ${pick.code} ${pick.title}`);
+    } else {
+      delete entry.course;
+    }
+  }
+
+  if (Object.keys(entry).length) selections[course.id] = entry;
+  else delete selections[course.id];
+  saveProgress();
+  render();
+});
+
+content.addEventListener('mouseover', e => {
+  const card = e.target.closest('.course-card');
+  if (!card || card.contains(e.relatedTarget)) return;
+  const course = COURSE_MAP.get(card.dataset.id);
+  if (course) showTooltip(e, course);
+});
+
+content.addEventListener('mouseout', e => {
+  const card = e.target.closest('.course-card');
+  if (card && !card.contains(e.relatedTarget)) hideTooltip();
+});
+
+STUDENT_FIELDS.forEach(([el]) => {
+  document.getElementById(el).addEventListener('input', saveStudentInfo);
+});
+
+document.getElementById('btn-export').addEventListener('click', exportData);
+document.getElementById('btn-reset').addEventListener('click', confirmReset);
+document.getElementById('import-file').addEventListener('change', importData);
+
+// ============================================================
+// TOOLTIP
+// ============================================================
+
+function showTooltip(e, course) {
+  const tt = document.getElementById('tooltip');
+  const statusMap = { 0: 'Available', 1: 'In Progress', 2: 'Completed' };
+  const locked = !isUnlocked(course);
+  const statusLabel = locked ? '🔒 Locked' : statusMap[progress[course.id] || 0];
+
+  // Build tooltip with textContent to prevent XSS — no innerHTML for data.
+  tt.innerHTML = '';
+
+  const titleEl = document.createElement('div');
+  titleEl.className = 'tooltip-title';
+  titleEl.textContent = codeOf(course);
+  tt.appendChild(titleEl);
+
+  const nameEl = document.createElement('div');
+  nameEl.textContent = titleOf(course);
+  tt.appendChild(nameEl);
+
+  const meta = document.createElement('div');
+  meta.className = 'tooltip-meta';
+  const lines = [`Prereqs: ${course.prereqText || formatDeps(course.deps)}`];
+  if (course.standing) lines.push(`Requires ${course.standing} standing`);
+  if (course.choice) lines.push(`Either/or: ${course.choice.map(o => `${o.code} (${o.credits} cr)`).join(', ')}`);
+  lines.push(`Credits: ${creditsOf(course)}${electiveList(course) ? ' (3 or 4 — set on card)' : ''}`);
+  if (course.elective === 'univ') lines.push('Any university course — check with your advisor.');
+  const pick = course.elective ? electivePick(course) : null;
+  if (pick && pick.star) lines.push('* This elective has its own prerequisites — confirm with your advisor.');
+  if (electiveList(course) && !pick) lines.push('No course chosen yet.');
+  lines.push(`Status: ${statusLabel}`);
+  lines.forEach((line, i) => {
+    if (i) meta.appendChild(document.createElement('br'));
+    meta.appendChild(document.createTextNode(line));
+  });
+  tt.appendChild(meta);
+
+  if (!locked) {
+    const hint = document.createElement('div');
+    hint.className = 'tooltip-hint';
+    hint.textContent = 'Click to cycle status';
+    tt.appendChild(hint);
+  }
+
+  tt.classList.add('visible');
+  moveTooltip(e);
+}
+
+function moveTooltip(e) {
+  const tt = document.getElementById('tooltip');
+  const w = tt.offsetWidth || 250;
+  const h = tt.offsetHeight || 140;
+  let x = e.clientX + 14;
+  let y = e.clientY + 14;
+  if (x + w + 10 > window.innerWidth) x = e.clientX - w - 14;
+  if (y + h + 10 > window.innerHeight) y = e.clientY - h - 14;
+  tt.style.left = Math.max(4, x) + 'px';
+  tt.style.top = Math.max(4, y) + 'px';
+}
+
+document.addEventListener('mousemove', e => {
+  const tt = document.getElementById('tooltip');
+  if (tt.classList.contains('visible')) moveTooltip(e);
+});
+
+function hideTooltip() {
+  document.getElementById('tooltip').classList.remove('visible');
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ============================================================
+// RESET
+// ============================================================
+
+function confirmReset() {
+  if (confirm('Reset all progress and elective choices? This cannot be undone.')) {
+    progress = {};
+    selections = {};
+    saveProgress();
+    render();
+    showToast('Progress reset.');
+  }
+}
+
+// ============================================================
+// EXPORT / IMPORT  (device-transfer feature)
+// ============================================================
+
+function exportData() {
+  const payload = {
+    planner: PLANNER_ID,
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    progress: safeParseProgress(storeGet(KEY.progress)),
+    selections: safeParseSelections(storeGet(KEY.selections)),
+    student_name: storeGet(KEY.name) || '',
+    student_id:   storeGet(KEY.id) || '',
+    start_date:   storeGet(KEY.start) || '',
+    advisor:      storeGet(KEY.advisor) || '',
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `ani-planner-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  showToast('✓ Backup downloaded.');
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  // Reject files larger than 50 KB (a legitimate backup is < 5 KB)
+  if (file.size > 50 * 1024) {
+    showToast('⚠ File too large — is this a valid backup?');
+    event.target.value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const raw = JSON.parse(e.target.result);
+      // Validate shape — must be a backup from this planner
+      if (!raw || typeof raw !== 'object' || raw.version !== 1 || raw.planner !== PLANNER_ID) {
+        throw new Error('Invalid format');
+      }
+      if (raw.progress)   storeSet(KEY.progress,   JSON.stringify(safeParseProgress(raw.progress)));
+      if (raw.selections) storeSet(KEY.selections, JSON.stringify(safeParseSelections(raw.selections)));
+      if (raw.student_name !== undefined) storeSet(KEY.name,    sanitiseText(raw.student_name));
+      if (raw.student_id   !== undefined) storeSet(KEY.id,      sanitiseText(raw.student_id));
+      if (raw.start_date   !== undefined) storeSet(KEY.start,   sanitiseText(raw.start_date));
+      if (raw.advisor      !== undefined) storeSet(KEY.advisor, sanitiseText(raw.advisor));
+      loadStudentInfo();
+      loadProgress();
+      render();
+      showToast('✓ Data restored from backup.');
+    } catch {
+      showToast('⚠ Could not read backup file.');
+    }
+    // Reset input so the same file can be re-imported if needed
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+loadProgress();
+loadStudentInfo();
+render();
+</script>
+</body>
+</html>
